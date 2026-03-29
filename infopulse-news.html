@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InfoPulse - Actualités en Direct</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const NewsApp = () => {
+      const [news, setNews] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [activeCategory, setActiveCategory] = useState('monde');
+      const [searchQuery, setSearchQuery] = useState('');
+
+      const categories = [
+        { id: 'monde', label: 'Monde', icon: '🌍', query: 'actualités monde aujourd\'hui' },
+        { id: 'tech', label: 'Tech', icon: '💻', query: 'actualités technologie innovation' },
+        { id: 'sport', label: 'Sport', icon: '⚽', query: 'actualités sport aujourd\'hui' },
+        { id: 'afrique', label: 'Afrique', icon: '🌍', query: 'actualités Afrique de l\'Ouest Burkina Côte d\'Ivoire' },
+        { id: 'economie', label: 'Économie', icon: '💰', query: 'actualités économie finance' },
+        { id: 'crypto', label: 'Crypto', icon: '₿', query: 'actualités crypto bitcoin ethereum' }
+      ];
+
+      const fetchNews = async (category) => {
+        setLoading(true);
+        try {
+          const selectedCategory = categories.find(c => c.id === category);
+          const query = searchQuery || selectedCategory.query;
+          
+          const response = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 4000,
+              tools: [
+                {
+                  "type": "web_search_20250305",
+                  "name": "web_search"
+                }
+              ],
+              messages: [
+                { 
+                  role: "user", 
+                  content: \`Recherche les actualités récentes sur "${query}". Retourne UNIQUEMENT un JSON valide (sans markdown ni backticks) avec ce format exact:
+{
+  "articles": [
+    {
+      "titre": "titre de l'article",
+      "description": "résumé court en 2-3 phrases",
+      "source": "nom de la source",
+      "date": "date ou heure",
+      "url": "lien si disponible"
+    }
+  ]
+}
+Maximum 8 articles récents et pertinents. Assure-toi que le JSON est valide.\`
+                }
+              ]
+            })
+          });
+
+          const data = await response.json();
+          
+          let jsonText = '';
+          if (data.content) {
+            jsonText = data.content
+              .filter(item => item.type === "text")
+              .map(item => item.text)
+              .join("");
+          }
+          
+          // Nettoyer le JSON
+          jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+          
+          const parsedData = JSON.parse(jsonText);
+          setNews(parsedData.articles || []);
+        } catch (error) {
+          console.error("Erreur:", error);
+          setNews([{
+            titre: "Erreur de chargement",
+            description: "Impossible de charger les actualités pour le moment. Veuillez réessayer.",
+            source: "Système",
+            date: new Date().toLocaleDateString('fr-FR')
+          }]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        fetchNews(activeCategory);
+      }, [activeCategory]);
+
+      const handleSearch = (e) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+          fetchNews(activeCategory);
+        }
+      };
+
+      return (
+        <div className="app-container">
+          <style>{\`
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap');
+
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+
+            body {
+              font-family: 'Inter', sans-serif;
+              background: #0a0a0a;
+              color: #fff;
+              overflow-x: hidden;
+            }
+
+            .app-container {
+              min-height: 100vh;
+              background: linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 100%);
+              position: relative;
+            }
+
+            .app-container::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 600px;
+              background: radial-gradient(circle at 50% 0%, rgba(255, 59, 48, 0.15) 0%, transparent 70%);
+              pointer-events: none;
+            }
+
+            .header {
+              position: sticky;
+              top: 0;
+              z-index: 100;
+              background: rgba(10, 10, 10, 0.8);
+              backdrop-filter: blur(20px);
+              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+              padding: 1.5rem 0;
+            }
+
+            .header-content {
+              max-width: 1400px;
+              margin: 0 auto;
+              padding: 0 2rem;
+            }
+
+            .logo-section {
+              display: flex;
+              align-items: center;
+              gap: 1rem;
+              margin-bottom: 1.5rem;
+            }
+
+            .logo {
+              width: 60px;
+              height: 60px;
+              background: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%);
+              border-radius: 16px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 2rem;
+              box-shadow: 0 8px 32px rgba(255, 59, 48, 0.4);
+            }
+
+            h1 {
+              font-family: 'Playfair Display', serif;
+              font-size: 3rem;
+              font-weight: 900;
+              background: linear-gradient(135deg, #fff 0%, #ff3b30 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              letter-spacing: -2px;
+            }
+
+            .tagline {
+              color: rgba(255, 255, 255, 0.6);
+              font-size: 1rem;
+              margin-left: 76px;
+              font-weight: 300;
+            }
+
+            .search-bar {
+              display: flex;
+              gap: 1rem;
+              margin-top: 1.5rem;
+            }
+
+            .search-input {
+              flex: 1;
+              padding: 1rem 1.5rem;
+              background: rgba(255, 255, 255, 0.05);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              border-radius: 12px;
+              color: white;
+              font-size: 1rem;
+              font-family: 'Inter', sans-serif;
+              transition: all 0.3s ease;
+            }
+
+            .search-input:focus {
+              outline: none;
+              background: rgba(255, 255, 255, 0.08);
+              border-color: #ff3b30;
+              box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1);
+            }
+
+            .search-input::placeholder {
+              color: rgba(255, 255, 255, 0.4);
+            }
+
+            .search-btn {
+              padding: 1rem 2rem;
+              background: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%);
+              border: none;
+              border-radius: 12px;
+              color: white;
+              font-weight: 700;
+              cursor: pointer;
+              transition: all 0.3s ease;
+              font-family: 'Inter', sans-serif;
+            }
+
+            .search-btn:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 8px 24px rgba(255, 59, 48, 0.4);
+            }
+
+            .categories {
+              display: flex;
+              gap: 1rem;
+              overflow-x: auto;
+              padding: 2rem 0;
+              scrollbar-width: none;
+            }
+
+            .categories::-webkit-scrollbar {
+              display: none;
+            }
+
+            .category-btn {
+              padding: 0.8rem 1.5rem;
+              background: rgba(255, 255, 255, 0.05);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              border-radius: 100px;
+              color: rgba(255, 255, 255, 0.7);
+              cursor: pointer;
+              transition: all 0.3s ease;
+              white-space: nowrap;
+              font-weight: 600;
+              font-size: 0.95rem;
+              font-family: 'Inter', sans-serif;
+            }
+
+            .category-btn:hover {
+              background: rgba(255, 255, 255, 0.1);
+              border-color: rgba(255, 255, 255, 0.2);
+            }
+
+            .category-btn.active {
+              background: linear-gradient(135deg, #ff3b30 0%, #ff9500 100%);
+              border-color: transparent;
+              color: white;
+              box-shadow: 0 4px 16px rgba(255, 59, 48, 0.3);
+            }
+
+            .main-content {
+              max-width: 1400px;
+              margin: 0 auto;
+              padding: 2rem;
+              position: relative;
+              z-index: 1;
+            }
+
+            .loading {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 400px;
+              gap: 1rem;
+            }
+
+            .spinner {
+              width: 60px;
+              height: 60px;
+              border: 4px solid rgba(255, 255, 255, 0.1);
+              border-top-color: #ff3b30;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+
+            .loading-text {
+              color: rgba(255, 255, 255, 0.6);
+              font-size: 1.1rem;
+              font-weight: 500;
+            }
+
+            .news-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+              gap: 2rem;
+              animation: fadeIn 0.6s ease-out;
+            }
+
+            @keyframes fadeIn {
+              from {
+                opacity: 0;
+                transform: translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+
+            .news-card {
+              background: rgba(255, 255, 255, 0.03);
+              backdrop-filter: blur(10px);
+              border: 1px solid rgba(255, 255, 255, 0.08);
+              border-radius: 20px;
+              padding: 2rem;
+              transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+              cursor: pointer;
+              position: relative;
+              overflow: hidden;
+            }
+
+            .news-card::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 4px;
+              background: linear-gradient(90deg, #ff3b30 0%, #ff9500 100%);
+              transform: scaleX(0);
+              transform-origin: left;
+              transition: transform 0.4s ease;
+            }
+
+            .news-card:hover {
+              transform: translateY(-8px);
+              background: rgba(255, 255, 255, 0.05);
+              border-color: rgba(255, 59, 48, 0.3);
+              box-shadow: 0 20px 60px rgba(255, 59, 48, 0.2);
+            }
+
+            .news-card:hover::before {
+              transform: scaleX(1);
+            }
+
+            .news-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: start;
+              margin-bottom: 1rem;
+            }
+
+            .news-source {
+              display: inline-block;
+              padding: 0.4rem 0.8rem;
+              background: rgba(255, 59, 48, 0.15);
+              border: 1px solid rgba(255, 59, 48, 0.3);
+              border-radius: 8px;
+              font-size: 0.75rem;
+              font-weight: 700;
+              color: #ff9500;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+
+            .news-date {
+              font-size: 0.85rem;
+              color: rgba(255, 255, 255, 0.4);
+              font-weight: 500;
+            }
+
+            .news-title {
+              font-size: 1.4rem;
+              font-weight: 800;
+              color: white;
+              margin-bottom: 1rem;
+              line-height: 1.4;
+              letter-spacing: -0.5px;
+            }
+
+            .news-description {
+              color: rgba(255, 255, 255, 0.7);
+              line-height: 1.7;
+              font-size: 0.95rem;
+              font-weight: 400;
+            }
+
+            .news-link {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              margin-top: 1.5rem;
+              color: #ff9500;
+              font-weight: 600;
+              font-size: 0.9rem;
+              text-decoration: none;
+              transition: all 0.3s ease;
+            }
+
+            .news-link:hover {
+              gap: 0.8rem;
+              color: #ff3b30;
+            }
+
+            .footer {
+              text-align: center;
+              padding: 3rem 2rem;
+              margin-top: 4rem;
+              border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .footer p {
+              color: rgba(255, 255, 255, 0.4);
+              font-size: 0.9rem;
+            }
+
+            @media (max-width: 768px) {
+              h1 {
+                font-size: 2rem;
+              }
+
+              .news-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+              }
+
+              .categories {
+                gap: 0.5rem;
+              }
+
+              .header-content {
+                padding: 0 1rem;
+              }
+
+              .main-content {
+                padding: 1rem;
+              }
+
+              .search-bar {
+                flex-direction: column;
+              }
+
+              .tagline {
+                margin-left: 0;
+                margin-top: 0.5rem;
+              }
+            }
+          \`}</style>
+
+          <div className="header">
+            <div className="header-content">
+              <div className="logo-section">
+                <div className="logo">📰</div>
+                <div>
+                  <h1>InfoPulse</h1>
+                  <p className="tagline">L'actualité en temps réel, propulsée par l'IA</p>
+                </div>
+              </div>
+              
+              <form onSubmit={handleSearch} className="search-bar">
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Rechercher une actualité..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button type="submit" className="search-btn">
+                  Rechercher
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div className="main-content">
+            <div className="categories">
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  className={\`category-btn \${activeCategory === cat.id ? 'active' : ''}\`}
+                  onClick={() => {
+                    setActiveCategory(cat.id);
+                    setSearchQuery('');
+                  }}
+                >
+                  {cat.icon} {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="loading">
+                <div className="spinner"></div>
+                <p className="loading-text">Chargement des actualités...</p>
+              </div>
+            ) : (
+              <div className="news-grid">
+                {news.map((article, index) => (
+                  <div 
+                    key={index} 
+                    className="news-card"
+                    onClick={() => article.url && window.open(article.url, '_blank')}
+                  >
+                    <div className="news-header">
+                      <span className="news-source">{article.source}</span>
+                      <span className="news-date">{article.date}</span>
+                    </div>
+                    <h2 className="news-title">{article.titre}</h2>
+                    <p className="news-description">{article.description}</p>
+                    {article.url && (
+                      <a 
+                        href={article.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="news-link"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Lire l'article →
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="footer">
+            <p>© 2026 InfoPulse - Propulsé par Claude AI</p>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<NewsApp />, document.getElementById('root'));
+  </script>
+</body>
+</html>
